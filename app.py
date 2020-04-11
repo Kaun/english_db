@@ -2,14 +2,15 @@ from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm
-from wtforms import StringField
-from wtforms import IntegerField
+from wtforms import StringField, IntegerField, SubmitField, HiddenField
+
 
 import json
 import random
 import create_json
 
 app = Flask(__name__)
+app.secret_key = "randomstring"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///teachers.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -63,10 +64,24 @@ class RequestClient(db.Model):
     client_time = db.Column(db.String, nullable=False)
 
 
+class BookingForm(FlaskForm):
+    # teacher_id = StringField('teacher_id')
+    teacher_name = StringField('teacher_name')
+    teacher_picture = StringField('teacher_picture')
+
+    #
+    client_name = StringField('Вас зовут')
+    client_phone = StringField('Ваш телефон')
+    client_teacher = HiddenField("clientTeacher")
+    client_weekday = HiddenField('clientWeekday')
+    name_weekday = HiddenField('nameWeekday')
+    client_time = HiddenField("clientTime")
+
+    submit = SubmitField('Записаться на пробный урок')
+
 
 db.create_all()
 
-# Не знаю как выполнить этот кусок кода один раз
 
 db_check = db.session.query(Teacher).get(1)
 if db_check is None:
@@ -76,16 +91,6 @@ if db_check is None:
                     free=str(teacher["free"]))
         db.session.add(t)
     db.session.commit()
-
-
-# for teacher in teachers:
-#     t = Teacher(id=teacher["id"], name=teacher["name"], about=teacher["about"], rating=teacher["rating"],
-#                 picture=teacher["picture"], price=teacher["price"], goals=str(teacher["goals"]),
-#                 free=str(teacher["free"]))
-#     db.session.add(t)
-
-
-# db.session.commit()
 
 
 @app.route('/')
@@ -139,31 +144,22 @@ def rout_profiles(id):
     # return ''
 
 
-@app.route('/booking/<id>/<day>/<hour>')
+@app.route('/booking/<id>/<day>/<hour>', methods=["GET", "POST"])
 def rout_booking(id, day, hour):
-    teacher = teachers[int(id)]
-    return render_template('booking.html', teacher=teacher, week=week, day=day, hour=hour)
-
-
-@app.route('/booking_done', methods=['POST'])
-def rout_booking_done():
-    booking_client = Booking(client_teacher_id=request.form["clientTeacher"], client_name=request.form["clientName"],
-                             client_phone=request.form["clientPhone"], client_time=request.form["clientTime"],
-                             client_weekday=request.form["clientWeekday"])
-    db.session.add(booking_client)
-    db.session.commit()
-    # booking = {}
-    # booking["clientTeacher"] = request.form["clientTeacher"]
-    # booking["clientName"] = request.form["clientName"]
-    # booking["clientPhone"] = request.form["clientPhone"]
-    # booking["clientTime"] = request.form["clientTime"]
-    # booking["clientWeekday"] = request.form["clientWeekday"]
-    # with open("booking.json", "a") as file:
-    #     json.dump(booking, file)
-    #     file.write(",")
-    return render_template('booking_done.html', day=week[request.form["clientWeekday"]],
-                           hour=request.form["clientTime"], name=request.form["clientName"],
-                           phone=request.form["clientPhone"])
+    id_ = int(id) + 1
+    teacher = db.session.query(Teacher).get(id_)
+    form = BookingForm(client_teacher=teacher.id, teacher_name=teacher.name, teacher_picture=teacher.picture,
+                       client_time=hour, client_weekday=day, name_weekday=week[day])
+    if request.method == "POST":
+        name = form.client_name.data
+        phone = form.client_phone.data
+        booking_client = Booking(client_teacher_id=teacher.id,client_name=name, client_phone=phone,
+                                 client_time=hour, client_weekday=day)
+        db.session.add(booking_client)
+        db.session.commit()
+        return render_template('booking_done.html', name_weekday=week[day], client_time=hour, name=name, phone=phone)
+    else:
+        return render_template('booking.html', form=form)
 
 
 @app.route('/request')
@@ -178,14 +174,6 @@ def rout_request_done():
 
     db.session.add(request_client)
     db.session.commit()
-    # request_user = {}
-    # request_user["clientName"] = request.form["clientName"]
-    # request_user["clientPhone"] = request.form["clientPhone"]
-    # request_user["goal"] = request.form["goal"]
-    # request_user["time"] = request.form["time"]
-    # with open("request.json", "a") as fr:
-    #     json.dump(request_user, fr)
-    #     fr.write(",")
     return render_template('request_done.html', goal=goals[request.form["goal"]],
                            time=request.form["time"], name=request.form["clientName"],
                            phone=request.form["clientPhone"])
