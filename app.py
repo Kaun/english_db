@@ -2,7 +2,7 @@ from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm
-from wtforms import StringField, IntegerField, SubmitField, HiddenField
+from wtforms import StringField, IntegerField, SubmitField, HiddenField, RadioField
 
 
 import json
@@ -76,8 +76,18 @@ class BookingForm(FlaskForm):
     client_weekday = HiddenField('clientWeekday')
     name_weekday = HiddenField('nameWeekday')
     client_time = HiddenField("clientTime")
-
     submit = SubmitField('Записаться на пробный урок')
+
+
+class RequestForm(FlaskForm):
+
+    client_goal = RadioField('goal', choices=[('travel', 'Для путешествий'), ('study', 'Для учебы'),
+                                              ('work', 'Для работы'), ('relocate', 'Для переезда')])
+    client_time = RadioField('goal', choices=[('1-2', '1-2 часа в&nbsp;неделю'), ('study', '3-5 часов в&nbsp;неделю'),
+                                              ('5-7', '5-7 часов в&nbsp;неделю'), ('7-10', '7-10 часов в&nbsp;неделю')])
+    client_name = StringField('Вас зовут')
+    client_phone = StringField('Ваш телефон')
+    submit = SubmitField('Найдите мне преподавателя')
 
 
 db.create_all()
@@ -137,11 +147,9 @@ def rout_profiles(id):
     goals_names = []
     goals_str = teacher.goals
     goals_list = json.loads(goals_str.replace("'", '"'))
-    # print(type(goals_list))
     for goal in goals_list:
         goals_names.append(goals[goal])
     return render_template('profile.html', teacher=teacher, week=week, free_time=free_time, goals=goals_names)
-    # return ''
 
 
 @app.route('/booking/<id>/<day>/<hour>', methods=["GET", "POST"])
@@ -153,7 +161,7 @@ def rout_booking(id, day, hour):
     if request.method == "POST":
         name = form.client_name.data
         phone = form.client_phone.data
-        booking_client = Booking(client_teacher_id=teacher.id,client_name=name, client_phone=phone,
+        booking_client = Booking(client_teacher_id=teacher.id, client_name=name, client_phone=phone,
                                  client_time=hour, client_weekday=day)
         db.session.add(booking_client)
         db.session.commit()
@@ -162,21 +170,21 @@ def rout_booking(id, day, hour):
         return render_template('booking.html', form=form)
 
 
-@app.route('/request')
+@app.route('/request', methods=["GET", "POST"])
 def rout_request():
-    return render_template('request.html')
-
-
-@app.route('/request_done', methods=['POST'])
-def rout_request_done():
-    request_client = RequestClient(client_name=request.form["clientName"], client_phone=request.form["clientPhone"],
-                                   client_goal=request.form["goal"], client_time=request.form["time"])
-
-    db.session.add(request_client)
-    db.session.commit()
-    return render_template('request_done.html', goal=goals[request.form["goal"]],
-                           time=request.form["time"], name=request.form["clientName"],
-                           phone=request.form["clientPhone"])
+    form = RequestForm()
+    if request.method == "POST":
+        name = form.client_name.data
+        phone = form.client_phone.data
+        goal = form.client_goal.data
+        time_ = form.client_time.data
+        request_client = RequestClient(client_name=name, client_phone=phone,
+                                       client_goal=goal, client_time=time_)
+        db.session.add(request_client)
+        db.session.commit()
+        return render_template('request_done.html', time=time_, name=name, phone=phone, goal=goals[goal])
+    else:
+        return render_template('request.html', form=form)
 
 
 if __name__ == '__main__':
