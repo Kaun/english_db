@@ -135,7 +135,7 @@ def route_goal(goal):
 @app.route('/profiles/<id>')
 def rout_profiles(id):
     id_ = int(id) + 1
-    teacher = db.session.query(Teacher).get(id_)
+    teacher = db.session.query(Teacher).get_or_404(id_)
     free_dict = eval(teacher.free)
     free_time = {}
     for day, hours in free_dict.items():
@@ -155,7 +155,7 @@ def rout_profiles(id):
 @app.route('/booking/<id>/<day>/<hour>', methods=["GET", "POST"])
 def rout_booking(id, day, hour):
     id_ = int(id) + 1
-    teacher = db.session.query(Teacher).get(id_)
+    teacher = db.session.query(Teacher).get_or_404(id_)
     form = BookingForm(client_teacher=teacher.id, teacher_name=teacher.name, teacher_picture=teacher.picture,
                        client_time=hour, client_weekday=day, name_weekday=week[day])
     if request.method == "POST":
