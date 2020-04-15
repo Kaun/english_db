@@ -81,8 +81,6 @@ class Goals(db.Model):
     teachers = db.relationship('Teacher', secondary=association_table, back_populates="goals_relation")
 
 
-
-
 class BookingForm(FlaskForm):
     # teacher_id = StringField('teacher_id')
     teacher_name = StringField('teacher_name')
@@ -99,7 +97,7 @@ class BookingForm(FlaskForm):
 class RequestForm(FlaskForm):
     client_goal = RadioField('goal', choices=[('travel', 'Для путешествий'), ('study', 'Для учебы'),
                                               ('work', 'Для работы'), ('relocate', 'Для переезда')])
-    client_time = RadioField('goal', choices=[('1-2', '1-2 часа в&nbsp;неделю'), ('study', '3-5 часов в&nbsp;неделю'),
+    client_time = RadioField('goal', choices=[('1-2', '1-2 часа в&nbsp;неделю'), ('3-5', '3-5 часов в&nbsp;неделю'),
                                               ('5-7', '5-7 часов в&nbsp;неделю'), ('7-10', '7-10 часов в&nbsp;неделю')])
     client_name = StringField('Вас зовут', [InputRequired()])
     client_phone = StringField('Ваш телефон', [InputRequired()])
@@ -109,8 +107,6 @@ class RequestForm(FlaskForm):
 db.create_all()
 
 # Completing db, if empty
-
-
 db_check_goals = db.session.query(Goals).get(1)
 if db_check_goals is None:
     for goal_, name_goal_ in goals.items():
@@ -122,24 +118,11 @@ if db_check_goals is None:
 db_check = db.session.query(Teacher).get(1)
 if db_check is None:
     for teacher in teachers:
-        # goals_str = teacher.goals
-        # goals_list = json.loads(goals_str.replace("'", '"'))
-        # for goal in goals_list:
-        #     goal_ = db.session.query(Goals).filter(Goals.goal == goal).first()
-        #     Teacher(goals_relation=goal_.id)
         teacher_ = Teacher(id=teacher["id"], name=teacher["name"], about=teacher["about"], rating=teacher["rating"],
                            picture=teacher["picture"], price=teacher["price"], goals=str(teacher["goals"]),
                            free=str(teacher["free"]))
         db.session.add(teacher_)
     db.session.commit()
-
-teachers_query = db.session.query(Teacher).all()
-for techer in teachers_query:
-    goals_str = teacher.goals
-    goals_list = json.loads(goals_str.replace("'", '"'))
-    for goal in goals_list:
-        goal_ = db.session.query(Goals).filter(Goals.goal == goal).first()
-        t = Teacher(goals_relation=goal_.id)
 
 
 
@@ -152,26 +135,15 @@ def route_index():
 
 @app.route('/allprofile')
 def route_allprofile():
-    return render_template('index.html', icons=icons, goals=goals, teachers=teachers)
+    teachers_ = db.session.query(Teacher).all()
+    return render_template('index.html', icons=icons, goals=goals, teachers=teachers_)
 
 
 @app.route('/goal/<goal>')
 def route_goal(goal):
-    # goals_str = teacher.goals
-    # goals_list = json.loads(goals_str.replace("'", '"'))
-    # teachers_query = db.session.query(Teacher).filter(Teacher.goals == goals[goal])
     teachers = db.session.query(Teacher).filter(Teacher.goals.like('%' + goal + '%')).order_by(Teacher.rating.desc()).all()
     goals_ = db.session.query(Goals).filter(Goals.goal == goal).first()
-    # teachers_goals = []
-    # teachers = teachers_query.all()
-    # print(teachers)
-    # for teacher in teachers:
-    #     if goal in teacher["goals"]:
-    #         teachers_goals.append(teacher)
-    # sorting by rating
-    # teachers_goals = sorted(teachers_goals, key=lambda teacher: teacher["rating"], reverse=True)
     return render_template('goal.html', icon=icons[goal], teachers=teachers, goal=goals_.name_goal)
-    # return ''
 
 
 @app.route('/profiles/<id>')
