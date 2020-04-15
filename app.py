@@ -21,22 +21,22 @@ week = {"mon": "Понедельник", "tue": "Вторник", "wed": "Сре
         "sun": "Воскресенье"}
 icons = {"travel": "✈", "study": "🏫", "work": "🏢", "relocate": "🚗", "programming": "⌨"}
 
-# with open("teachers.json", "r") as f:
-#     teachers = json.load(f)
-#
-# with open("goals.json", "r") as f:
-#     goals = json.load(f)
+with open("teachers.json", "r") as f:
+    teachers = json.load(f)
+
+with open("goals.json", "r") as f:
+    goals = json.load(f)
 
 teacher_goals_association = db.Table('teacher_goals',
-                                     db.Column('teacher_id', db.Integer, db.ForeignKey('teachers.id_teacher')),
+                                     db.Column('teacher_id', db.Integer, db.ForeignKey('teachers.id')),
                                      db.Column('goals_id', db.Integer, db.ForeignKey('goals.id')))
 
 
 class Teacher(db.Model):
     __tablename__ = "teachers"
 
-    id_teacher = db.Column(db.Integer, primary_key=True)
-    id = db.Column(db.Integer, nullable=False, unique=True)
+    id = db.Column(db.Integer, primary_key=True)
+    # id = db.Column(db.Integer, nullable=False, unique=True)
     name = db.Column(db.String, nullable=False)
     about = db.Column(db.String, nullable=False)
     rating = db.Column(db.Float, nullable=False)
@@ -52,7 +52,7 @@ class Booking(db.Model):
     __tablename__ = "booking"
 
     id_client = db.Column(db.Integer, primary_key=True)
-    client_teacher_id = db.Column(db.Integer, db.ForeignKey("teachers.id_teacher"))
+    client_teacher_id = db.Column(db.Integer, db.ForeignKey("teachers.id"))
     client = db.relationship("Teacher", back_populates="reservation")
     client_name = db.Column(db.String, nullable=False)
     client_phone = db.Column(db.String, nullable=False)
@@ -80,7 +80,6 @@ class Goals(db.Model):
 
 
 class BookingForm(FlaskForm):
-    # teacher_id = StringField('teacher_id')
     teacher_name = StringField('teacher_name')
     teacher_picture = StringField('teacher_picture')
     client_name = StringField('Вас зовут', [InputRequired()])
@@ -115,7 +114,7 @@ if db_check_goals is None:
 db_check_teachers = db.session.query(Teacher).get(1)
 if db_check_teachers is None:
     for teacher in teachers:
-        teacher_ = Teacher(id=teacher["id"], name=teacher["name"], about=teacher["about"], rating=teacher["rating"],
+        teacher_ = Teacher(name=teacher["name"], about=teacher["about"], rating=teacher["rating"],
                            picture=teacher["picture"], price=teacher["price"], goals=str(teacher["goals"]),
                            free=str(teacher["free"]))
         db.session.add(teacher_)
@@ -156,14 +155,13 @@ def route_allprofile():
 def route_goal(goal):
     teachers = db.session.query(Teacher).filter(Teacher.goals.like('%' + goal + '%')).order_by(
         Teacher.rating.desc()).all()
-    goals_ = db.session.query(Goals).filter(Goals.goal == goal).first()
-    return render_template('goal.html', icon=icons[goal], teachers=teachers, goal=goals_.name_goal)
+    goals = db.session.query(Goals).filter(Goals.goal == goal).first()
+    return render_template('goal.html', icon=icons[goal], teachers=teachers, goal=goals.name_goal)
 
 
 @app.route('/profiles/<id>')
 def rout_profiles(id):
-    id_ = int(id) + 1
-    teacher = db.session.query(Teacher).get_or_404(id_)
+    teacher = db.session.query(Teacher).get_or_404(id)
     free_dict = eval(teacher.free)
     free_time = {}
     for day, hours in free_dict.items():
@@ -173,23 +171,20 @@ def rout_profiles(id):
                 free_hours[hour] = stat
         free_time[day] = free_hours
     goals_names = []
-    goals_str = teacher.goals
-    goals_list = json.loads(goals_str.replace("'", '"'))
-    for goal in goals_list:
-        goals_names.append(goals[goal])
+    for goal in teacher.goals_relation:
+        goals_names.append(goal.name_goal)
     return render_template('profile.html', teacher=teacher, week=week, free_time=free_time, goals=goals_names)
 
 
 @app.route('/booking/<id>/<day>/<hour>', methods=["GET", "POST"])
 def rout_booking(id, day, hour):
-    id_ = int(id) + 1
-    teacher = db.session.query(Teacher).get_or_404(id_)
+    teacher = db.session.query(Teacher).get_or_404(id)
     form = BookingForm(client_teacher=teacher.id, teacher_name=teacher.name, teacher_picture=teacher.picture,
                        client_time=hour, client_weekday=day, name_weekday=week[day])
     if request.method == "POST":
         name = form.client_name.data
         phone = form.client_phone.data
-        booking_client = Booking(client_teacher_id=teacher.id + 1, client_name=name, client_phone=phone,
+        booking_client = Booking(client_teacher_id=teacher.id, client_name=name, client_phone=phone,
                                  client_time=hour, client_weekday=day)
         db.session.add(booking_client)
         db.session.commit()
@@ -210,7 +205,7 @@ def rout_request():
                                        client_goal=goal, client_time=time_)
         db.session.add(request_client)
         db.session.commit()
-        return render_template('request_done.html', time=time_, name=name, phone=phone, goal=goals[goal])
+        return render_template('request_done.html', time=time_, name=name, phone=phone, goal=goals_db_dict[goal])
     else:
         return render_template('request.html', form=form)
 
