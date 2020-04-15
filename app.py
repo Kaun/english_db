@@ -21,17 +21,15 @@ week = {"mon": "Понедельник", "tue": "Вторник", "wed": "Сре
         "sun": "Воскресенье"}
 icons = {"travel": "✈", "study": "🏫", "work": "🏢", "relocate": "🚗", "programming": "⌨"}
 
-with open("teachers.json", "r") as f:
-    teachers = json.load(f)
+# with open("teachers.json", "r") as f:
+#     teachers = json.load(f)
+#
+# with open("goals.json", "r") as f:
+#     goals = json.load(f)
 
-with open("goals.json", "r") as f:
-    goals = json.load(f)
-
-
-association_table = db.Table('association', db.metadata,
-    db.Column('teacher_id', db.Integer, db.ForeignKey('teachers.id_teacher')),
-    db.Column('goals_id', db.Integer, db.ForeignKey('goals.id'))
-)
+teacher_goals_association = db.Table('teacher_goals',
+                                     db.Column('teacher_id', db.Integer, db.ForeignKey('teachers.id_teacher')),
+                                     db.Column('goals_id', db.Integer, db.ForeignKey('goals.id')))
 
 
 class Teacher(db.Model):
@@ -47,7 +45,7 @@ class Teacher(db.Model):
     goals = db.Column(db.String, nullable=False)
     free = db.Column(db.String, nullable=False)
     reservation = db.relationship('Booking', back_populates="client")
-    goals_relation = db.relationship('Goals', secondary=association_table, back_populates="teachers")
+    goals_relation = db.relationship('Goals', secondary=teacher_goals_association, back_populates="teachers")
 
 
 class Booking(db.Model):
@@ -78,7 +76,7 @@ class Goals(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     goal = db.Column(db.String, nullable=False)
     name_goal = db.Column(db.String, nullable=False)
-    teachers = db.relationship('Teacher', secondary=association_table, back_populates="goals_relation")
+    teachers = db.relationship('Teacher', secondary=teacher_goals_association, back_populates="goals_relation")
 
 
 class BookingForm(FlaskForm):
@@ -114,9 +112,8 @@ if db_check_goals is None:
         db.session.add(goal)
     db.session.commit()
 
-
-db_check = db.session.query(Teacher).get(1)
-if db_check is None:
+db_check_teachers = db.session.query(Teacher).get(1)
+if db_check_teachers is None:
     for teacher in teachers:
         teacher_ = Teacher(id=teacher["id"], name=teacher["name"], about=teacher["about"], rating=teacher["rating"],
                            picture=teacher["picture"], price=teacher["price"], goals=str(teacher["goals"]),
@@ -124,24 +121,41 @@ if db_check is None:
         db.session.add(teacher_)
     db.session.commit()
 
+# m2m
+db_all_teachers = db.session.query(Teacher).all()
+for teacher in db_all_teachers:
+    goals_str = teacher.goals
+    goals_list = json.loads(goals_str.replace("'", '"'))
+    for goal in goals_list:
+        goal_db = db.session.query(Goals).filter(Goals.goal == goal).first()
+        teacher.goals_relation.append(goal_db)
+    db.session.commit()
+
+
+goals_db = db.session.query(Goals).all()
+goals_db_dict = {}
+for goal in goals_db:
+    goals_db_dict[goal.goal] = goal.name_goal
+
 
 
 @app.route('/')
 def route_index():
-    teachers_ = db.session.query(Teacher).all()
-    teachers_random = random.sample(teachers_, 6)
-    return render_template('index.html', icons=icons, goals=goals, teachers=teachers_random)
+    teachers = db.session.query(Teacher).all()
+    teachers_random = random.sample(teachers, 6)
+    return render_template('index.html', icons=icons, goals=goals_db_dict, teachers=teachers_random)
 
 
 @app.route('/allprofile')
 def route_allprofile():
-    teachers_ = db.session.query(Teacher).all()
-    return render_template('index.html', icons=icons, goals=goals, teachers=teachers_)
+    teachers = db.session.query(Teacher).all()
+    return render_template('index.html', icons=icons, goals=goals_db_dict, teachers=teachers)
 
 
 @app.route('/goal/<goal>')
 def route_goal(goal):
-    teachers = db.session.query(Teacher).filter(Teacher.goals.like('%' + goal + '%')).order_by(Teacher.rating.desc()).all()
+    teachers = db.session.query(Teacher).filter(Teacher.goals.like('%' + goal + '%')).order_by(
+        Teacher.rating.desc()).all()
     goals_ = db.session.query(Goals).filter(Goals.goal == goal).first()
     return render_template('goal.html', icon=icons[goal], teachers=teachers, goal=goals_.name_goal)
 
@@ -175,7 +189,7 @@ def rout_booking(id, day, hour):
     if request.method == "POST":
         name = form.client_name.data
         phone = form.client_phone.data
-        booking_client = Booking(client_teacher_id=teacher.id+1, client_name=name, client_phone=phone,
+        booking_client = Booking(client_teacher_id=teacher.id + 1, client_name=name, client_phone=phone,
                                  client_time=hour, client_weekday=day)
         db.session.add(booking_client)
         db.session.commit()
