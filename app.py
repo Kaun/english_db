@@ -36,7 +36,6 @@ class Teacher(db.Model):
     __tablename__ = "teachers"
 
     id = db.Column(db.Integer, primary_key=True)
-    # id = db.Column(db.Integer, nullable=False, unique=True)
     name = db.Column(db.String, nullable=False)
     about = db.Column(db.String, nullable=False)
     rating = db.Column(db.Float, nullable=False)
@@ -93,9 +92,10 @@ class BookingForm(FlaskForm):
 
 class RequestForm(FlaskForm):
     client_goal = RadioField('goal', choices=[('travel', 'Для путешествий'), ('study', 'Для учебы'),
-                                              ('work', 'Для работы'), ('relocate', 'Для переезда')])
+                                              ('work', 'Для работы'), ('relocate', 'Для переезда')], default='travel')
     client_time = RadioField('goal', choices=[('1-2', '1-2 часа в&nbsp;неделю'), ('3-5', '3-5 часов в&nbsp;неделю'),
-                                              ('5-7', '5-7 часов в&nbsp;неделю'), ('7-10', '7-10 часов в&nbsp;неделю')])
+                                              ('5-7', '5-7 часов в&nbsp;неделю'), ('7-10', '7-10 часов в&nbsp;неделю')],
+                             default='1-2')
     client_name = StringField('Вас зовут', [InputRequired()])
     client_phone = StringField('Ваш телефон', [InputRequired()])
     submit = SubmitField('Найдите мне преподавателя')
@@ -181,7 +181,7 @@ def rout_booking(id, day, hour):
     teacher = db.session.query(Teacher).get_or_404(id)
     form = BookingForm(client_teacher=teacher.id, teacher_name=teacher.name, teacher_picture=teacher.picture,
                        client_time=hour, client_weekday=day, name_weekday=week[day])
-    if request.method == "POST":
+    if request.method == "POST" and form.validate():
         name = form.client_name.data
         phone = form.client_phone.data
         booking_client = Booking(client_teacher_id=teacher.id, client_name=name, client_phone=phone,
@@ -196,7 +196,7 @@ def rout_booking(id, day, hour):
 @app.route('/request', methods=["GET", "POST"])
 def rout_request():
     form = RequestForm()
-    if request.method == "POST":
+    if request.method == "POST" and form.validate():
         name = form.client_name.data
         phone = form.client_phone.data
         goal = form.client_goal.data

@@ -3,6 +3,7 @@
   <main class="container mt-5">
     <div class="col-12 col-sm-10 col-lg-6 offset-lg-3 offset-sm-1">
       <form action="/request" method="post" class="card mb-5">
+          {{ form.csrf_token }}
         <div class="card-body text-center pt-5">
           <h1 class="h3 card-title mt-4 mb-2">Подбор преподавателя</h1>
           <p class="px-5">Напишите, чего вам нужно и&nbsp;мы&nbsp;подберем отличных&nbsp;ребят</p>
@@ -18,7 +19,6 @@
                         {{ subfield.label(class="form-check-label") }}
                     </div>
                 {% endfor %}
-{#                {{ form.client_goal(class_="form-check") }}#}
 
 
             </div>
@@ -31,7 +31,6 @@
                         {{ subfield.label(class="form-check-label") }}
                     </div>
                 {% endfor %}
-{#                {{ form.client_time(class_="form-check") }}#}
             </div>
           </div>
         </div>

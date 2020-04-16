@@ -4,6 +4,7 @@
     <div class="row mt-5">
       <div class="col-10 col-md-6 offset-1 offset-md-3 mb-3">
         <form action={{ url_for('rout_booking', id=form.client_teacher.data, day=form.client_weekday.data, hour=form.client_time.data) }} method="POST"  class="card mb-3" >
+            {{ form.csrf_token }}
           <div class="card-body text-center pt-5">
             <img src="{{  form.teacher_picture.data }}" class="mb-3" width="95" alt="">
             <h2 class="h5 card-title mt-2 mb-2">{{  form.teacher_name.data }}</h2>
@@ -16,11 +17,7 @@
                   {{ form.client_weekday(class_="form-control") }}
                   {{ form.client_time(class_="form-control") }}
                   {{ form.client_teacher(class_="form-control") }}
-{#                  <input class="form-control"  type="hidden" name="clientWeekday" value={{day}}>#}
-{#                  <input class="form-control"  type="hidden" name="clientTime" value={{ hour }}>#}
-{#                  <input class="form-control"  type="hidden" name="clientTeacher" value={{ teacher.id }}>#}
               </div>
-{##}
               {{ form.client_name.label(class_="mb-1 mt-2") }}
               {{ form.client_name(class_="form-control") }}
 
